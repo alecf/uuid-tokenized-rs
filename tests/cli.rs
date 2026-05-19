@@ -89,9 +89,16 @@ fn cli_binary() -> PathBuf {
     PathBuf::from(path)
 }
 
+static FIXTURE_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn write_fixture_model() -> PathBuf {
     let mut path = env::temp_dir();
-    path.push(format!("uuid-readable-rs-test-{}.model", std::process::id()));
+    let n = FIXTURE_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    path.push(format!(
+        "uuid-readable-rs-test-{}-{}.model",
+        std::process::id(),
+        n
+    ));
     let bytes = synth_model(&synth_pieces());
     fs::write(&path, bytes).expect("write fixture model");
     path
@@ -177,6 +184,32 @@ fn cli_encode_rejects_missing_model_file() {
         "stderr: {}",
         stderr
     );
+}
+
+#[test]
+fn cli_verbose_warns_when_tokenization_unavailable() {
+    // Our synthetic fixture is a SentencePiece .model protobuf, which the
+    // `tokenizers` crate can't load (it expects tokenizer.json). The CLI
+    // should still emit the encoded phrase to stdout, and warn on stderr.
+    let model = write_fixture_model();
+    let model_str = model.to_str().unwrap();
+    let (stdout, stderr, code) = run_cli(&[
+        "encode",
+        "--model",
+        model_str,
+        "--verbose",
+        "0ee001c7-12f3-4b29-a4cc-f48838b3587a",
+    ]);
+    assert_eq!(code, 0, "stderr: {}", stderr);
+    let phrase = stdout.trim();
+    assert_eq!(phrase.split('-').count(), PHRASE_LEN);
+    assert!(
+        stderr.contains("--verbose tokenization unavailable")
+            || stderr.contains("tokenizer.json"),
+        "expected unavailable warning, got: {}",
+        stderr
+    );
+    let _ = fs::remove_file(&model);
 }
 
 #[test]
