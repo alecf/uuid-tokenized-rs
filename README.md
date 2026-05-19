@@ -44,6 +44,17 @@ let decoded: Uuid = codec.decode(&phrase)?;
 assert_eq!(decoded, uuid);
 ```
 
+If you want a different separator (or none at all), use `encode_tokens` instead and join however you like:
+
+```rust
+let tokens: [String; 8] = codec.encode_tokens(uuid);
+let smashed: String = tokens.concat();           // "aparteaceaeashland..."
+let underscored: String = tokens.join("_");      // "aparte_aceae_ashland_..."
+let dotted: String = tokens.join(".");           // ...
+```
+
+`encode(uuid)` is exactly `encode_tokens(uuid).join("-")` — same eight tokens, different presentation. Decoding accepts only the hyphen form.
+
 `UuidCodec` is reusable — build it once at startup and hold onto it. Loading and filtering a typical 30 MB `tokenizer.json` takes a few hundred milliseconds; encode/decode after that are O(1).
 
 ## Quick start (CLI)
