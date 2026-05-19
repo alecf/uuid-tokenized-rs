@@ -70,6 +70,22 @@ export UUID_READABLE_MODEL_PATH=/path/to/tokenizer.json
 # 0ee001c7-12f3-4b29-a4cc-f48838b3587a
 ```
 
+### `--verbose`: how many tokens did we save?
+
+Pass `--verbose` (or `-v`) to encode or decode and the CLI tokenizes both input and output with the same tokenizer file you supplied, then prints the comparison to stderr (stdout still emits only the result, so pipes still work):
+
+```
+$ ./target/release/main encode --model gemma-4.json --verbose 0ee001c7-12f3-4b29-a4cc-f48838b3587a
+aparte-aceae-ashland-erster-omores-vando-defiant-galactos
+
+  uuid     36 chars  →   34 tokens
+  phrase   57 chars  →   19 tokens  (44% fewer)
+```
+
+In informal sampling against Gemma 4's tokenizer, the encoded phrase is consistently **~40% fewer tokens** than the raw UUID string — useful when these IDs end up in LLM prompts. The actual tokenization runs in the CLI binary only (via the `tokenizers` crate); the library never depends on it, so library consumers don't pull in that dep.
+
+`--verbose` currently requires a `tokenizer.json` file. If you point it at a SentencePiece `.model` it warns and skips the comparison (encode/decode still works).
+
 ## How it works
 
 A 128-bit UUID splits into eight 16-bit chunks (big-endian). Each chunk is an index into a fixed 65,536-entry token table. Hyphen-join the eight tokens; that's the encoding. Decoding inverts the index lookup.

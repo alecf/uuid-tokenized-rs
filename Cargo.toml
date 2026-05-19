@@ -11,10 +11,21 @@ readme = "README.md"
 
 categories = ["data-structures", "parser-implementations"]
 
+[features]
+default = ["cli"]
+# Pulls in the `tokenizers` crate so the CLI can count tokens with --verbose.
+# Library consumers can opt out: `default-features = false`.
+cli = ["dep:tokenizers"]
+
 [dependencies]
 anyhow = "1.0"
 serde_json = "1.0"
 uuid = { version = "1.9", features = ["v4"] }
+tokenizers = { version = "0.20", optional = true }
+
+[[bin]]
+name = "main"
+required-features = ["cli"]
 
 [profile.release]
 lto = true
