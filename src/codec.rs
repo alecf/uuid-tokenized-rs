@@ -60,16 +60,26 @@ impl UuidCodec {
         Ok(Self { tokens, index })
     }
 
-    /// Encode a UUID as a hyphen-joined phrase of exactly [`PHRASE_LEN`] tokens.
-    pub fn encode(&self, uuid: Uuid) -> String {
+    /// Encode a UUID as exactly [`PHRASE_LEN`] tokens, returned as an array.
+    ///
+    /// Use this when you want to choose your own separator (or none at all —
+    /// `tokens.concat()` smashes them together; `tokens.join("-")` is what
+    /// [`encode`](Self::encode) does).
+    pub fn encode_tokens(&self, uuid: Uuid) -> [String; PHRASE_LEN] {
         let n = uuid.as_u128();
-        let mut parts: Vec<&str> = Vec::with_capacity(PHRASE_LEN);
-        for i in 0..PHRASE_LEN {
+        std::array::from_fn(|i| {
             let shift = 16 * (PHRASE_LEN - 1 - i);
-            let idx = ((n >> shift) & 0xFFFF) as u16;
-            parts.push(self.tokens[idx as usize].as_str());
-        }
-        parts.join("-")
+            let idx = ((n >> shift) & 0xFFFF) as usize;
+            self.tokens[idx].clone()
+        })
+    }
+
+    /// Encode a UUID as a hyphen-joined phrase of exactly [`PHRASE_LEN`] tokens.
+    ///
+    /// Thin wrapper over [`encode_tokens`](Self::encode_tokens) — equivalent
+    /// to `self.encode_tokens(uuid).join("-")`.
+    pub fn encode(&self, uuid: Uuid) -> String {
+        self.encode_tokens(uuid).join("-")
     }
 
     /// Decode a hyphen-joined phrase back into the original UUID.
@@ -434,6 +444,20 @@ mod tests {
         let codec = fixture_codec();
         let u = Uuid::parse_str("0ee001c7-12f3-4b29-a4cc-f48838b3587a").unwrap();
         assert_eq!(codec.decode(&codec.encode(u)).unwrap(), u);
+    }
+
+    #[test]
+    fn encode_tokens_returns_eight_strings_matching_encode() {
+        let codec = fixture_codec();
+        let u = Uuid::from_u128(0x1234_5678_9abc_def0_1122_3344_5566_7788);
+        let arr = codec.encode_tokens(u);
+        assert_eq!(arr.len(), PHRASE_LEN);
+        // The joined array must equal the hyphenated form produced by encode().
+        assert_eq!(arr.join("-"), codec.encode(u));
+        // Caller can also pick a different separator or smash them together.
+        let smashed = arr.concat();
+        assert!(smashed.bytes().all(|b| b.is_ascii_lowercase()));
+        assert_eq!(smashed.len(), arr.iter().map(String::len).sum::<usize>());
     }
 
     #[test]
