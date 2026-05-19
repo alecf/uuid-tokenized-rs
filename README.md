@@ -23,9 +23,7 @@ aparte-aceae-ashland-erster-omores-vando-defiant-galactos
 - URL-safe by construction: lowercase ASCII letters and hyphens only.
 - **Pluggable**: works with any Hugging Face `tokenizer.json` or SentencePiece `.model` that has ≥ 65,536 alphabetic 3-to-8-letter tokens after filtering.
 - Deterministic: same model file → same encoding, on any machine.
-- Zero new heavyweight dependencies (just `serde_json` for the JSON path; the `.model` protobuf path is hand-parsed).
-
-The original sentence-based `generate()` / `short()` / `generate_inverse()` API from `uuid-readable-rs` is still available — see [Legacy: sentence-based encoding](#legacy-sentence-based-encoding) below.
+- Zero heavyweight dependencies (just `serde_json` for the JSON path; the `.model` protobuf path is hand-parsed).
 
 ## Quick start (library)
 
@@ -131,32 +129,8 @@ curl -L -H "Authorization: Bearer $HF_TOKEN" \
 
 ## Security
 
-This is not a cryptographic primitive — don't use it as a secure random generator. The bijection preserves the entropy of the input UUID and nothing more.
-
-- `UuidCodec::encode` produces 2¹²⁸ distinct phrases (full bijection with UUID).
-- The legacy `generate()` produces 25¹² ≈ 5.96×10¹⁶ — also a bijection with the UUID.
-- The legacy `short()` collapses 128 bits down to 32 and is **not** a bijection.
-
-## Legacy: sentence-based encoding
-
-The original `uuid-readable-rs` API is still exported unchanged:
-
-```rust
-use uuid::Uuid;
-use uuid_readable_rs::{generate, generate_from, generate_inverse, short, short_from};
-
-let uuid = Uuid::new_v4();
-let long: String = generate_from(uuid);
-// e.g. "Wildon Mollie Behka the bubbler of Arecibo moaned Chavey Haney Torbart and 10 calm kingfishers"
-
-let recovered: Uuid = generate_inverse(&long)?;
-assert_eq!(uuid, recovered);
-
-let short: String = short_from(uuid);  // 32-bit lossy short form
-```
-
-This API uses a built-in vocabulary of names/verbs/places/etc and doesn't require any tokenizer file. The long form is a full bijection with the UUID; the short form is not.
+This is not a cryptographic primitive — don't use it as a secure random generator. The encoding preserves the entropy of the input UUID and nothing more: `UuidCodec::encode` produces 2¹²⁸ distinct phrases (full bijection with the UUID), so whatever randomness the source UUID has is exactly what the phrase has.
 
 ## Credits
 
-Forked from [`uuid-readable-rs`](https://github.com/Martichou/uuid-readable-rs) by Martichou, which itself was inspired by [@Debdut's `uuid-readable`](https://github.com/Debdut/uuid-readable). The tokenized encoding (`UuidCodec`) is new in this fork.
+Forked from [`uuid-readable-rs`](https://github.com/Martichou/uuid-readable-rs) by Martichou, which generated grammatically-shaped sentences from UUIDs. This fork replaces that approach entirely with a tokenizer-derived encoding (`UuidCodec`).

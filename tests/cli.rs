@@ -10,6 +10,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
+use uuid::Uuid;
+
 const PHRASE_LEN: usize = 8;
 const TABLE_SIZE: usize = 1 << 16;
 
@@ -107,6 +109,19 @@ fn run_cli(args: &[&str]) -> (String, String, i32) {
     )
 }
 
+fn run_cli_no_model_env(args: &[&str]) -> (String, String, i32) {
+    let out = Command::new(cli_binary())
+        .env_remove("UUID_READABLE_MODEL_PATH")
+        .args(args)
+        .output()
+        .expect("spawn cli");
+    (
+        String::from_utf8_lossy(&out.stdout).to_string(),
+        String::from_utf8_lossy(&out.stderr).to_string(),
+        out.status.code().unwrap_or(-1),
+    )
+}
+
 #[test]
 fn cli_encode_decode_roundtrip() {
     let model = write_fixture_model();
@@ -137,10 +152,11 @@ fn cli_encode_decode_roundtrip() {
 
 #[test]
 fn cli_encode_requires_model() {
-    let (_stdout, stderr, code) = run_cli(&["encode", "0ee001c7-12f3-4b29-a4cc-f48838b3587a"]);
+    let (_stdout, stderr, code) =
+        run_cli_no_model_env(&["encode", "0ee001c7-12f3-4b29-a4cc-f48838b3587a"]);
     assert_ne!(code, 0);
     assert!(
-        stderr.contains("no SentencePiece model supplied")
+        stderr.contains("no tokenizer model supplied")
             || stderr.contains("UUID_READABLE_MODEL_PATH"),
         "stderr: {}",
         stderr
@@ -164,14 +180,16 @@ fn cli_encode_rejects_missing_model_file() {
 }
 
 #[test]
-fn cli_legacy_long_form_still_works() {
-    let uuid = "08c60edc-1297-476c-a876-cef77a014757";
-    let (stdout, stderr, code) = run_cli(&[uuid]);
+fn cli_encode_with_no_uuid_generates_random() {
+    let model = write_fixture_model();
+    let model_str = model.to_str().unwrap();
+    let (stdout, stderr, code) = run_cli(&["encode", "--model", model_str]);
     assert_eq!(code, 0, "stderr: {}", stderr);
-    let long = stdout.trim();
-    assert!(long.contains(" the "), "unexpected long form: {:?}", long);
-
-    let (rev_stdout, rev_stderr, rev_code) = run_cli(&["reverse", long]);
-    assert_eq!(rev_code, 0, "reverse failed: {}", rev_stderr);
-    assert_eq!(rev_stdout.trim(), uuid);
+    let phrase = stdout.trim();
+    let parts: Vec<&str> = phrase.split('-').collect();
+    assert_eq!(parts.len(), PHRASE_LEN);
+    let (decoded, _, code) = run_cli(&["decode", "--model", model_str, phrase]);
+    assert_eq!(code, 0);
+    assert!(Uuid::parse_str(decoded.trim()).is_ok());
+    let _ = fs::remove_file(&model);
 }

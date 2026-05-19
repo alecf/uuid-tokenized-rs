@@ -1,35 +1,22 @@
 [package]
 name = "uuid-readable-rs"
-version = "0.1.6"
-authors = ["Martichou <martichou.andre@gmail.com>"]
+version = "0.2.0"
+authors = ["Martichou <martichou.andre@gmail.com>", "Alec Flett"]
 edition = "2018"
-documentation = "https://docs.rs/uuid-readable-rs"
-repository = "https://github.com/Martichou/uuid-readable-rs"
-description = "Easy to remember unique sentences acting as UUID"
-keywords = ["id", "uuid", "shortid", "uuid-v4", "unique"]
+repository = "https://github.com/alecf/uuid-tokenized-rs"
+description = "Compact, URL-safe, bijective UUIDs encoded as tokens from an LLM tokenizer's vocabulary"
+keywords = ["uuid", "tokenizer", "url-safe", "sentencepiece", "encoding"]
 license = "AGPL-3.0"
 readme = "README.md"
 
 categories = ["data-structures", "parser-implementations"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0"
 serde_json = "1.0"
 uuid = { version = "1.9", features = ["v4"] }
 
-[dev-dependencies]
-criterion = "0.5"
-
 [profile.release]
 lto = true
 opt-level = 3
 codegen-units = 1
-
-[lib]
-bench = false
-
-[[bench]]
-name = "main_bench"
-harness = false
