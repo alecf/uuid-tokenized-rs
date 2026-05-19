@@ -2,23 +2,20 @@ use std::env;
 use std::process;
 
 use uuid::Uuid;
-use uuid_readable_rs::{generate, generate_from, generate_inverse, short, short_from, UuidCodec};
+use uuid_readable_rs::UuidCodec;
 
 const MODEL_ENV: &str = "UUID_READABLE_MODEL_PATH";
 
 fn usage() -> ! {
     eprintln!(
         "Usage:
-  uuid-readable [<uuid>]                    Long sentence from UUID (random if omitted)
-  uuid-readable short [<uuid>]              Short sentence from UUID (random if omitted)
-  uuid-readable reverse <sentence>          Recover UUID from a long sentence
-  uuid-readable encode --model <path> <uuid>
-                                            Compact tokenizer-derived encoding
-  uuid-readable decode --model <path> <phrase>
-                                            Decode a compact phrase back to a UUID
+  uuid-tokenized encode --model <path> [<uuid>]   Encode a UUID (random if omitted)
+  uuid-tokenized decode --model <path> <phrase>   Decode a phrase back to a UUID
 
-The encode/decode subcommands also read --model from $UUID_READABLE_MODEL_PATH
-when the flag is omitted."
+--model also reads from $UUID_READABLE_MODEL_PATH when the flag is omitted.
+
+The encoded phrase is exactly 8 lowercase tokens joined with hyphens, e.g.
+  aparte-aceae-ashland-erster-omores-vando-defiant-galactos"
     );
     process::exit(2);
 }
@@ -54,7 +51,7 @@ fn parse_model_arg(rest: &[String]) -> (Option<String>, Vec<String>) {
 fn load_codec(model: Option<String>) -> UuidCodec {
     let path = model.unwrap_or_else(|| {
         eprintln!(
-            "no SentencePiece model supplied; pass --model <path> or set ${}",
+            "no tokenizer model supplied; pass --model <path> or set ${}",
             MODEL_ENV
         );
         process::exit(2);
@@ -76,35 +73,12 @@ fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
 
     match args.split_first() {
-        None => {
-            println!("{}", generate());
-        }
-        Some((cmd, rest)) if cmd == "short" => match rest.first() {
-            None => println!("{}", short()),
-            Some(s) => println!("{}", short_from(parse_uuid(s))),
-        },
-        Some((cmd, rest)) if cmd == "reverse" => {
-            if rest.is_empty() {
-                usage();
-            }
-            let sentence = rest.join(" ");
-            match generate_inverse(&sentence) {
-                Ok(uuid) => println!("{}", uuid),
-                Err(e) => {
-                    eprintln!("could not reverse sentence: {}", e);
-                    process::exit(1);
-                }
-            }
-        }
         Some((cmd, rest)) if cmd == "encode" => {
             let (model, positional) = parse_model_arg(rest);
             let codec = load_codec(model);
             let uuid = match positional.first() {
                 Some(s) => parse_uuid(s),
-                None => {
-                    eprintln!("encode requires a uuid argument");
-                    process::exit(2);
-                }
+                None => Uuid::new_v4(),
             };
             println!("{}", codec.encode(uuid));
         }
@@ -127,9 +101,6 @@ fn main() {
             }
         }
         Some((cmd, _)) if cmd == "-h" || cmd == "--help" => usage(),
-        Some((s, rest)) if rest.is_empty() => {
-            println!("{}", generate_from(parse_uuid(s)));
-        }
         _ => usage(),
     }
 }
