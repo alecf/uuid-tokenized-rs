@@ -77,7 +77,10 @@ use data::{
 };
 use uuid::Uuid;
 
+mod codec;
 mod data;
+
+pub use codec::{UuidCodec, PHRASE_LEN, TABLE_SIZE};
 
 // TODO - Add a reverse method for sentence -> uuid
 
